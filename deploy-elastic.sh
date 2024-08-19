@@ -2054,7 +2054,8 @@ EOF
     SERVICETOKEN=`echo ${SERVICETOKEN_RESP} | jq -r .value`
     echo "${green}[DEBUG]${reset} Generated SERVICE TOKEN for fleet server: ${SERVICETOKEN}"
     if [[ ${#SERVICETOKEN} -lt 10 ]]; then
-            echo "Service Token is invalid, please enter valid one below:"
+            echo "${red}[DEBUG]${reset} Service Token is invalid, please run command below to generate one:"
+	    echo `${red}[DEBUG]${reset} curl -k -u "elastic:${PASSWD}" -s -X POST https://localhost:5601/api/fleet/service-tokens --header 'kbn-xsrf: true' | jq -r .value`
             read SERVICETOKEN;
     fi
 
