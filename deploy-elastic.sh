@@ -23,7 +23,7 @@
 ###############################################################################################################
 
 # configurable vars
-HEAP="512m"
+HEAP="4g"
 
 ###############################################################################################################
 
@@ -315,7 +315,7 @@ CLUSTER_NAME=lab
 LICENSE=trial
 ES_PORT=9200
 KIBANA_PORT=5601
-MEM_LIMIT=1073741824
+MEM_LIMIT=8589934592
 COMPOSE_PROJECT_NAME=es
 EOF
     echo "${green}[DEBUG]${reset} .env created"
@@ -352,18 +352,6 @@ services:
           "  - name: es01\n"\
           "    dns:\n"\
           "      - es01\n"\
-          "      - localhost\n"\
-          "    ip:\n"\
-          "      - 127.0.0.1\n"\
-          "  - name: es02\n"\
-          "    dns:\n"\
-          "      - es02\n"\
-          "      - localhost\n"\
-          "    ip:\n"\
-          "      - 127.0.0.1\n"\
-          "  - name: es03\n"\
-          "    dns:\n"\
-          "      - es03\n"\
           "      - localhost\n"\
           "    ip:\n"\
           "      - 127.0.0.1\n"\
@@ -440,8 +428,8 @@ services:
       - node.attr.zone=zone1
       - node.attr.zone2=zone1
       - cluster.name=\${CLUSTER_NAME}
-      - cluster.initial_master_nodes=es01,es02,es03
-      - discovery.seed_hosts=es02,es03
+      - cluster.initial_master_nodes=es01
+      - discovery.seed_hosts=es01
       - ELASTIC_PASSWORD=\${ELASTIC_PASSWORD}
       - bootstrap.memory_lock=true
       - xpack.security.enabled=true
@@ -471,115 +459,10 @@ services:
       timeout: 10s
       retries: 120
 
-  es02:
-    container_name: es02
-    depends_on:
-      - es01
-    image: docker.elastic.co/elasticsearch/elasticsearch:${VERSION}
-    labels:
-      co.elastic.logs/module: elasticsearch
-    volumes:
-      - certs:/usr/share/elasticsearch/config/certs
-      - data02:/usr/share/elasticsearch/data
-      - ./temp:/temp
-      - ./elasticsearch.yml:/usr/share/elasticsearch/config/elasticsearch.yml
-    environment:
-      - node.name=es02
-      - node.roles=master,data_content,data_hot,ingest,remote_cluster_client,ml,transform
-      - node.attr.data=hot
-      - node.attr.data2=warm
-      - node.attr.zone=zone1
-      - node.attr.zone2=zone2
-      - cluster.name=\${CLUSTER_NAME}
-      - cluster.initial_master_nodes=es01,es02,es03
-      - discovery.seed_hosts=es01,es03
-      - bootstrap.memory_lock=true
-      - xpack.security.enabled=true
-      - xpack.security.http.ssl.enabled=true
-      - xpack.security.http.ssl.key=certs/es02/es02.key
-      - xpack.security.http.ssl.certificate=certs/es02/es02.crt
-      - xpack.security.http.ssl.certificate_authorities=certs/ca/ca.crt
-      - xpack.security.http.ssl.verification_mode=certificate
-      - xpack.security.transport.ssl.enabled=true
-      - xpack.security.transport.ssl.key=certs/es02/es02.key
-      - xpack.security.transport.ssl.certificate=certs/es02/es02.crt
-      - xpack.security.transport.ssl.certificate_authorities=certs/ca/ca.crt
-      - xpack.security.transport.ssl.verification_mode=certificate
-      - xpack.license.self_generated.type=\${LICENSE}
-    mem_limit: \${MEM_LIMIT}
-    ulimits:
-      memlock:
-        soft: -1
-        hard: -1
-    healthcheck:
-      test:
-        [
-          "CMD-SHELL",
-          "curl -s --cacert config/certs/ca/ca.crt https://localhost:9200 | grep -q 'missing authentication credentials'",
-        ]
-      interval: 10s
-      timeout: 10s
-      retries: 120
-
-  es03:
-    container_name: es03
-    depends_on:
-      - es02
-    image: docker.elastic.co/elasticsearch/elasticsearch:${VERSION}
-    labels:
-      co.elastic.logs/module: elasticsearch
-    volumes:
-      - certs:/usr/share/elasticsearch/config/certs
-      - data03:/usr/share/elasticsearch/data
-      - ./temp:/temp
-      - ./elasticsearch.yml:/usr/share/elasticsearch/config/elasticsearch.yml
-    environment:
-      - node.name=es03
-      - node.roles=master,data_frozen,ingest,remote_cluster_client,ml,transform
-      - xpack.searchable.snapshot.shared_cache.size=20%
-      - node.attr.data=warm
-      - node.attr.data2=cold
-      - node.attr.zone=zone2
-      - node.attr.zone2=zone3
-      - cluster.name=\${CLUSTER_NAME}
-      - cluster.initial_master_nodes=es01,es02,es03
-      - discovery.seed_hosts=es01,es02
-      - bootstrap.memory_lock=true
-      - xpack.security.enabled=true
-      - xpack.security.http.ssl.enabled=true
-      - xpack.security.http.ssl.key=certs/es03/es03.key
-      - xpack.security.http.ssl.certificate=certs/es03/es03.crt
-      - xpack.security.http.ssl.certificate_authorities=certs/ca/ca.crt
-      - xpack.security.http.ssl.verification_mode=certificate
-      - xpack.security.transport.ssl.enabled=true
-      - xpack.security.transport.ssl.key=certs/es03/es03.key
-      - xpack.security.transport.ssl.certificate=certs/es03/es03.crt
-      - xpack.security.transport.ssl.certificate_authorities=certs/ca/ca.crt
-      - xpack.security.transport.ssl.verification_mode=certificate
-      - xpack.license.self_generated.type=\${LICENSE}
-    mem_limit: \${MEM_LIMIT}
-    ulimits:
-      memlock:
-        soft: -1
-        hard: -1
-    healthcheck:
-      test:
-        [
-          "CMD-SHELL",
-          "curl -s --cacert config/certs/ca/ca.crt https://localhost:9200 | grep -q 'missing authentication credentials'",
-        ]
-      interval: 10s
-      timeout: 10s
-      retries: 120
-
   kibana:
     container_name: kibana
     depends_on:
       es01:
-        condition: service_healthy
-      es02:
-        condition: service_healthy
-      es03:
         condition: service_healthy
     image: docker.elastic.co/kibana/kibana:${VERSION}
     labels:
@@ -615,10 +498,6 @@ volumes:
   certs:
     driver: local
   data01:
-    driver: local
-  data02:
-    driver: local
-  data03:
     driver: local
   kibanadata:
     driver: local
@@ -691,20 +570,6 @@ instances:
   - name: es01
     dns:
       - es01
-      - localhost
-    ip:
-      - 127.0.0.1
-
-  - name: es02
-    dns:
-      - es02
-      - localhost
-    ip:
-      - 127.0.0.1
-
-  - name: es03
-    dns:
-      - es03
       - localhost
     ip:
       - 127.0.0.1
@@ -838,8 +703,8 @@ services:
       - node.attr.data2=hot
       - node.attr.zone=zone1
       - node.attr.zone2=zone1
-      - discovery.seed_hosts=es01,es02,es03
-      - cluster.initial_master_nodes=es01,es02,es03
+      - discovery.seed_hosts=es01
+      - cluster.initial_master_nodes=es01
       - ELASTIC_PASSWORD=${PASSWD}
       - \"ES_JAVA_OPTS=-Xms${HEAP} -Xmx${HEAP}\"
       - xpack.license.self_generated.type=trial
@@ -865,74 +730,13 @@ services:
       timeout: 10s
       retries: 5
 
-  es02:
-    container_name: es02
-    image: docker.elastic.co/elasticsearch/elasticsearch:${VERSION}
-    environment:
-      - node.name=es02
-      - node.roles=master,data_content,data_hot,ingest,remote_cluster_client,ml,transform
-      - node.attr.data=hot
-      - node.attr.data2=warm
-      - node.attr.zone=zone1
-      - node.attr.zone2=zone2
-      - discovery.seed_hosts=es01,es02,es03
-      - cluster.initial_master_nodes=es01,es02,es03
-      - ELASTIC_PASSWORD=${PASSWD}
-      - \"ES_JAVA_OPTS=-Xms${HEAP} -Xmx${HEAP}\"
-      - xpack.license.self_generated.type=trial
-      - xpack.security.enabled=true
-      - xpack.security.http.ssl.enabled=true
-      - xpack.security.http.ssl.key=\$CERTS_DIR/es02/es02.key
-      - xpack.security.http.ssl.certificate_authorities=\$CERTS_DIR/ca/ca.crt
-      - xpack.security.http.ssl.certificate=\$CERTS_DIR/es02/es02.crt
-      - xpack.security.transport.ssl.enabled=true
-      - xpack.security.transport.ssl.verification_mode=certificate
-      - xpack.security.transport.ssl.certificate_authorities=\$CERTS_DIR/ca/ca.crt
-      - xpack.security.transport.ssl.certificate=\$CERTS_DIR/es02/es02.crt
-      - xpack.security.transport.ssl.key=\$CERTS_DIR/es02/es02.key
-    labels:
-      co.elastic.logs/module: elasticsearch
-    volumes: ['data02:/usr/share/elasticsearch/data', 'certs:\$CERTS_DIR', './elasticsearch.yml:/usr/share/elasticsearch/config/elasticsearch.yml', './temp:/temp']
-    restart: on-failure
-
-  es03:
-    container_name: es03
-    image: docker.elastic.co/elasticsearch/elasticsearch:${VERSION}
-    environment:
-      - node.name=es03
-      - node.roles=master,data_frozen,ingest,remote_cluster_client,ml,transform
-      - xpack.searchable.snapshot.shared_cache.size=1GB
-      - node.attr.data=warm
-      - node.attr.data2=cold
-      - node.attr.zone=zone2
-      - node.attr.zone2=zone3
-      - discovery.seed_hosts=es01,es02,es03
-      - cluster.initial_master_nodes=es01,es02,es03
-      - ELASTIC_PASSWORD=${PASSWD}
-      - \"ES_JAVA_OPTS=-Xms${HEAP} -Xmx${HEAP}\"
-      - xpack.license.self_generated.type=trial
-      - xpack.security.enabled=true
-      - xpack.security.http.ssl.enabled=true
-      - xpack.security.http.ssl.key=\$CERTS_DIR/es03/es03.key
-      - xpack.security.http.ssl.certificate_authorities=\$CERTS_DIR/ca/ca.crt
-      - xpack.security.http.ssl.certificate=\$CERTS_DIR/es03/es03.crt
-      - xpack.security.transport.ssl.enabled=true
-      - xpack.security.transport.ssl.verification_mode=certificate
-      - xpack.security.transport.ssl.certificate_authorities=\$CERTS_DIR/ca/ca.crt
-      - xpack.security.transport.ssl.certificate=\$CERTS_DIR/es03/es03.crt
-      - xpack.security.transport.ssl.key=\$CERTS_DIR/es03/es03.key
-    labels:
-      co.elastic.logs/module: elasticsearch
-    volumes: ['data03:/usr/share/elasticsearch/data', 'certs:\$CERTS_DIR', './elasticsearch.yml:/usr/share/elasticsearch/config/elasticsearch.yml', './temp:/temp']
-    restart: on-failure
-
   kibana:
     container_name: kibana
     image: docker.elastic.co/kibana/kibana:${VERSION}
     environment:
       - SERVER_NAME=kibana
       - SERVER_HOST=\"0\"
-      - ELASTICSEARCH_HOSTS=[\"https://es01:9200\",\"https://es02:9200\",\"https://es03:9200\"]
+      - ELASTICSEARCH_HOSTS=[\"https://es01:9200\"]
       - ELASTICSEARCH_SSL_CERTIFICATEAUTHORITIES=\$KIBANA_CERTS_DIR/ca/ca.crt
       - ELASTICSEARCH_SSL_VERIFICATIONMODE=certificate
       - SERVER_SSL_CERTIFICATE=\$KIBANA_CERTS_DIR/kibana/kibana.crt
@@ -950,7 +754,7 @@ services:
     command: /usr/bin/true
     depends_on: {\"es01\": {\"condition\": \"service_healthy\"}}
 
-volumes: {\"data01\", \"data02\", \"data03\", \"certs\"}
+volumes: {\"data01\", \"certs\"}
   "
 
     stackcomposecurrent="version: '2.2'
@@ -965,8 +769,8 @@ services:
       - node.attr.data2=hot
       - node.attr.zone=zone1
       - node.attr.zone2=zone1
-      - discovery.seed_hosts=es01,es02,es03
-      - cluster.initial_master_nodes=es01,es02,es03
+      - discovery.seed_hosts=es01
+      - cluster.initial_master_nodes=es01
       - ELASTIC_PASSWORD=${PASSWD}
       - \"ES_JAVA_OPTS=-Xms${HEAP} -Xmx${HEAP}\"
       - xpack.license.self_generated.type=trial
@@ -992,71 +796,13 @@ services:
       timeout: 10s
       retries: 5
 
-  es02:
-    container_name: es02
-    image: docker.elastic.co/elasticsearch/elasticsearch:${VERSION}
-    environment:
-      - node.name=es02
-      - node.attr.data=hot
-      - node.attr.data2=warm
-      - node.attr.zone=zone1
-      - node.attr.zone2=zone2
-      - discovery.seed_hosts=es01,es02,es03
-      - cluster.initial_master_nodes=es01,es02,es03
-      - ELASTIC_PASSWORD=${PASSWD}
-      - \"ES_JAVA_OPTS=-Xms${HEAP} -Xmx${HEAP}\"
-      - xpack.license.self_generated.type=trial
-      - xpack.security.enabled=true
-      - xpack.security.http.ssl.enabled=true
-      - xpack.security.http.ssl.key=\$CERTS_DIR/es02/es02.key
-      - xpack.security.http.ssl.certificate_authorities=\$CERTS_DIR/ca/ca.crt
-      - xpack.security.http.ssl.certificate=\$CERTS_DIR/es02/es02.crt
-      - xpack.security.transport.ssl.enabled=true
-      - xpack.security.transport.ssl.verification_mode=certificate
-      - xpack.security.transport.ssl.certificate_authorities=\$CERTS_DIR/ca/ca.crt
-      - xpack.security.transport.ssl.certificate=\$CERTS_DIR/es02/es02.crt
-      - xpack.security.transport.ssl.key=\$CERTS_DIR/es02/es02.key
-    labels:
-      co.elastic.logs/module: elasticsearch
-    volumes: ['data02:/usr/share/elasticsearch/data', 'certs:\$CERTS_DIR', './elasticsearch.yml:/usr/share/elasticsearch/config/elasticsearch.yml', './temp:/temp']
-    restart: on-failure
-
-  es03:
-    container_name: es03
-    image: docker.elastic.co/elasticsearch/elasticsearch:${VERSION}
-    environment:
-      - node.name=es03
-      - node.attr.data=warm
-      - node.attr.data2=cold
-      - node.attr.zone=zone2
-      - node.attr.zone2=zone3
-      - discovery.seed_hosts=es01,es02,es03
-      - cluster.initial_master_nodes=es01,es02,es03
-      - ELASTIC_PASSWORD=${PASSWD}
-      - \"ES_JAVA_OPTS=-Xms${HEAP} -Xmx${HEAP}\"
-      - xpack.license.self_generated.type=trial
-      - xpack.security.enabled=true
-      - xpack.security.http.ssl.enabled=true
-      - xpack.security.http.ssl.key=\$CERTS_DIR/es03/es03.key
-      - xpack.security.http.ssl.certificate_authorities=\$CERTS_DIR/ca/ca.crt
-      - xpack.security.http.ssl.certificate=\$CERTS_DIR/es03/es03.crt
-      - xpack.security.transport.ssl.enabled=true
-      - xpack.security.transport.ssl.verification_mode=certificate
-      - xpack.security.transport.ssl.certificate_authorities=\$CERTS_DIR/ca/ca.crt
-      - xpack.security.transport.ssl.certificate=\$CERTS_DIR/es03/es03.crt
-      - xpack.security.transport.ssl.key=\$CERTS_DIR/es03/es03.key
-    labels:
-      co.elastic.logs/module: elasticsearch
-    volumes: ['data03:/usr/share/elasticsearch/data', 'certs:\$CERTS_DIR', './elasticsearch.yml:/usr/share/elasticsearch/config/elasticsearch.yml', './temp:/temp']
-    restart: on-failure
-
   kibana:
     container_name: kibana
     image: docker.elastic.co/kibana/kibana:${VERSION}
     environment:
       - SERVER_NAME=kibana
       - SERVER_HOST=\"0\"
-      - ELASTICSEARCH_HOSTS=[\"https://es01:9200\",\"https://es02:9200\",\"https://es03:9200\"]
+      - ELASTICSEARCH_HOSTS=[\"https://es01:9200\"]
       - ELASTICSEARCH_SSL_CERTIFICATEAUTHORITIES=\$KIBANA_CERTS_DIR/ca/ca.crt
       - ELASTICSEARCH_SSL_VERIFICATIONMODE=certificate
       - SERVER_SSL_CERTIFICATE=\$KIBANA_CERTS_DIR/kibana/kibana.crt
@@ -1074,7 +820,7 @@ services:
     command: /usr/bin/true
     depends_on: {\"es01\": {\"condition\": \"service_healthy\"}}
 
-volumes: {\"data01\", \"data02\", \"data03\", \"certs\"}
+volumes: {\"data01\", \"certs\"}
   "
 
     stackcompose71="version: '2.2'
@@ -1089,8 +835,8 @@ services:
       - node.attr.data2=hot
       - node.attr.zone=zone1
       - node.attr.zone2=zone1
-      - discovery.seed_hosts=es01,es02,es03
-      - cluster.initial_master_nodes=es01,es02,es03
+      - discovery.seed_hosts=es01
+      - cluster.initial_master_nodes=es01
       - ELASTIC_PASSWORD=${PASSWD}
       - \"ES_JAVA_OPTS=-Xms${HEAP} -Xmx${HEAP}\"
       - xpack.license.self_generated.type=trial
@@ -1116,71 +862,13 @@ services:
       timeout: 10s
       retries: 5
 
-  es02:
-    container_name: es02
-    image: docker.elastic.co/elasticsearch/elasticsearch:${VERSION}
-    environment:
-      - node.name=es02
-      - node.attr.data=hot
-      - node.attr.data2=warm
-      - node.attr.zone=zone1
-      - node.attr.zone2=zone2
-      - discovery.seed_hosts=es01,es02,es03
-      - cluster.initial_master_nodes=es01,es02,es03
-      - ELASTIC_PASSWORD=${PASSWD}
-      - \"ES_JAVA_OPTS=-Xms${HEAP} -Xmx${HEAP}\"
-      - xpack.license.self_generated.type=trial
-      - xpack.security.enabled=true
-      - xpack.security.http.ssl.enabled=true
-      - xpack.security.http.ssl.key=\$CERTS_DIR/es02/es02.key
-      - xpack.security.http.ssl.certificate_authorities=\$CERTS_DIR/ca/ca.crt
-      - xpack.security.http.ssl.certificate=\$CERTS_DIR/es02/es02.crt
-      - xpack.security.transport.ssl.enabled=true
-      - xpack.security.transport.ssl.verification_mode=certificate
-      - xpack.security.transport.ssl.certificate_authorities=\$CERTS_DIR/ca/ca.crt
-      - xpack.security.transport.ssl.certificate=\$CERTS_DIR/es02/es02.crt
-      - xpack.security.transport.ssl.key=\$CERTS_DIR/es02/es02.key
-    labels:
-      co.elastic.logs/module: elasticsearch
-    volumes: ['data02:/usr/share/elasticsearch/data', './certs:\$CERTS_DIR', './elasticsearch.yml:/usr/share/elasticsearch/config/elasticsearch.yml', './temp:/temp']
-    restart: on-failure
-
-  es03:
-    container_name: es03
-    image: docker.elastic.co/elasticsearch/elasticsearch:${VERSION}
-    environment:
-      - node.name=es03
-      - node.attr.data=warm
-      - node.attr.data2=cold
-      - node.attr.zone=zone2
-      - node.attr.zone=zone3
-      - discovery.seed_hosts=es01,es02,es03
-      - cluster.initial_master_nodes=es01,es02,es03
-      - ELASTIC_PASSWORD=${PASSWD}
-      - \"ES_JAVA_OPTS=-Xms${HEAP} -Xmx${HEAP}\"
-      - xpack.license.self_generated.type=trial
-      - xpack.security.enabled=true
-      - xpack.security.http.ssl.enabled=true
-      - xpack.security.http.ssl.key=\$CERTS_DIR/es03/es03.key
-      - xpack.security.http.ssl.certificate_authorities=\$CERTS_DIR/ca/ca.crt
-      - xpack.security.http.ssl.certificate=\$CERTS_DIR/es03/es03.crt
-      - xpack.security.transport.ssl.enabled=true
-      - xpack.security.transport.ssl.verification_mode=certificate
-      - xpack.security.transport.ssl.certificate_authorities=\$CERTS_DIR/ca/ca.crt
-      - xpack.security.transport.ssl.certificate=\$CERTS_DIR/es03/es03.crt
-      - xpack.security.transport.ssl.key=\$CERTS_DIR/es03/es03.key
-    labels:
-      co.elastic.logs/module: elasticsearch
-    volumes: ['data03:/usr/share/elasticsearch/data', './certs:\$CERTS_DIR', './elasticsearch.yml:/usr/share/elasticsearch/config/elasticsearch.yml', './temp:/temp']
-    restart: on-failure
-
   kibana:
     container_name: kibana
     image: docker.elastic.co/kibana/kibana:${VERSION}
     environment:
       - SERVER_NAME=kibana
       - SERVER_HOST=\"0\"
-      - ELASTICSEARCH_HOSTS=[\"https://es01:9200\",\"https://es02:9200\",\"https://es03:9200\"]
+      - ELASTICSEARCH_HOSTS=[\"https://es01:9200\"]
       - ELASTICSEARCH_SSL_CERTIFICATEAUTHORITIES=\$KIBANA_CERTS_DIR/ca/ca.crt
       - ELASTICSEARCH_SSL_VERIFICATIONMODE=certificate
       - SERVER_SSL_CERTIFICATE=\$KIBANA_CERTS_DIR/kibana/kibana.crt
@@ -1198,7 +886,7 @@ services:
     command: /usr/bin/true
     depends_on: {\"es01\": {\"condition\": \"service_healthy\"}}
 
-volumes: {\"data01\", \"data02\", \"data03\", \"certs\"}
+volumes: {\"data01\", \"certs\"}
   "
 
     stackcompose6="version: '2.2'
@@ -1214,8 +902,8 @@ services:
       - node.attr.zone=zone1
       - node.attr.zone2=zone1
       - cluster.name=docker-cluster
-      - discovery.zen.minimum_master_nodes=2
-      - discovery.zen.ping.unicast.hosts=es01,es02,es03
+      - discovery.zen.minimum_master_nodes=1
+      - discovery.zen.ping.unicast.hosts=es01
       - ELASTIC_PASSWORD=${PASSWD}
       - \"ES_JAVA_OPTS=-Xms${HEAP} -Xmx${HEAP}\"
       - xpack.license.self_generated.type=trial
@@ -1238,60 +926,6 @@ services:
       timeout: 10s
       retries: 25
 
-  es02:
-    container_name: es02
-    image: docker.elastic.co/elasticsearch/elasticsearch:${VERSION}
-    environment:
-      - node.name=es02
-      - node.attr.data=hot
-      - node.attr.data2=warm
-      - node.attr.zone=zone1
-      - node.attr.zone2=zone2
-      - cluster.name=docker-cluster
-      - discovery.zen.minimum_master_nodes=2
-      - ELASTIC_PASSWORD=${PASSWD}
-      - discovery.zen.ping.unicast.hosts=es01,es02,es03
-      - \"ES_JAVA_OPTS=-Xms${HEAP} -Xmx${HEAP}\"
-      - xpack.license.self_generated.type=trial
-      - xpack.security.enabled=true
-      - xpack.security.http.ssl.enabled=true
-      - xpack.security.transport.ssl.enabled=true
-      - xpack.security.transport.ssl.verification_mode=certificate
-      - xpack.ssl.certificate_authorities=\$CERTS_DIR/ca/ca.crt
-      - xpack.ssl.certificate=\$CERTS_DIR/es02/es02.crt
-      - xpack.ssl.key=\$CERTS_DIR/es02/es02.key
-    labels:
-      co.elastic.logs/module: elasticsearch
-    volumes: ['data02:/usr/share/elasticsearch/data', './certs:\$CERTS_DIR', './elasticsearch.yml:/usr/share/elasticsearch/config/elasticsearch.yml', './temp:/temp']
-    restart: on-failure
-
-  es03:
-    container_name: es03
-    image: docker.elastic.co/elasticsearch/elasticsearch:${VERSION}
-    environment:
-      - node.name=es03
-      - node.attr.data=warm
-      - node.attr.data2=cold
-      - node.attr.zone=zone2
-      - node.attr.zone2=zone3
-      - cluster.name=docker-cluster
-      - discovery.zen.minimum_master_nodes=2
-      - ELASTIC_PASSWORD=${PASSWD}
-      - discovery.zen.ping.unicast.hosts=es01,es02,es03
-      - \"ES_JAVA_OPTS=-Xms${HEAP} -Xmx${HEAP}\"
-      - xpack.license.self_generated.type=trial
-      - xpack.security.enabled=true
-      - xpack.security.http.ssl.enabled=true
-      - xpack.security.transport.ssl.enabled=true
-      - xpack.security.transport.ssl.verification_mode=certificate
-      - xpack.ssl.certificate_authorities=\$CERTS_DIR/ca/ca.crt
-      - xpack.ssl.certificate=\$CERTS_DIR/es03/es03.crt
-      - xpack.ssl.key=\$CERTS_DIR/es03/es03.key
-    labels:
-      co.elastic.logs/module: elasticsearch
-    volumes: ['data03:/usr/share/elasticsearch/data', './certs:\$CERTS_DIR', './elasticsearch.yml:/usr/share/elasticsearch/config/elasticsearch.yml', './temp:/temp']
-    restart: on-failure
-
   wait_until_ready:
     image: docker.elastic.co/elasticsearch/elasticsearch:${VERSION}
     command: /usr/bin/true
@@ -1303,7 +937,7 @@ services:
     environment:
       - SERVER_NAME=kibana
       - SERVER_HOST=\"0\"
-      - ELASTICSEARCH_HOSTS=[\"https://es01:9200\",\"https://es02:9200\",\"https://es03:9200\"]
+      - ELASTICSEARCH_HOSTS=[\"https://es01:9200\"]
       - ELASTICSEARCH_SSL_CERTIFICATEAUTHORITIES=\$KIBANA_CERTS_DIR/ca/ca.crt
       - ELASTICSEARCH_SSL_VERIFICATIONMODE=certificate
       - SERVER_SSL_CERTIFICATE=\$KIBANA_CERTS_DIR/kibana/kibana.crt
@@ -1316,7 +950,7 @@ services:
       - 5601:5601
     restart: on-failure
 
-volumes: {\"data01\", \"data02\", \"data03\" , \"certs\"}
+volumes: {\"data01\", \"certs\"}
   "
     if [ $(checkversion $VERSION) -ge $(checkversion "7.12.0") ]; then
       echo "${stackcomposecurrentp1}" > stack-compose.yml
@@ -1588,7 +1222,7 @@ processors:
 monitoring.enabled: false
 
 output.elasticsearch:
-  hosts: [\"https://es01:9200\", \"https://es02:9200\", \"https://es03:9200\"]
+  hosts: [\"https://es01:9200\"]
   username: \"metricbeat_monitoring_user\"
   password: "\"${MMUPASSWD}\""
   ssl.enabled: true
@@ -1622,7 +1256,7 @@ processors:
 monitoring.enabled: false
 
 output.elasticsearch:
-  hosts: [\"https://es01:9200\", \"https://es02:9200\", \"https://es03:9200\"]
+  hosts: [\"https://es01:9200\"]
   username: \"elastic\"
   password: "\"${PASSWD}\""
   ssl.enabled: true
@@ -1654,7 +1288,7 @@ processors:
   - add_docker_metadata: ~
 
 output.elasticsearch:
-  hosts: [\"https://es01:9200\", \"https://es02:9200\", \"https://es03:9200\"]
+  hosts: [\"https://es01:9200\"]
   username: \"elastic\"
   password: "\"${PASSWD}\""
   ssl.enabled: true
@@ -1695,7 +1329,7 @@ metricbeat.modules:
 - module: elasticsearch
   xpack.enabled: true
   period: 10s
-  hosts: [\"https://es01:9200\", \"https://es02:9200\", \"https://es03:9200\"]
+  hosts: [\"https://es01:9200\"]
   username: \"remote_monitoring_user\"
   password: "\"${RMUPASSWD}\""
   ssl.enabled: true
@@ -1708,7 +1342,7 @@ metricbeat.modules:
 - module: elasticsearch
   xpack.enabled: true
   period: 10s
-  hosts: [\"https://es01:9200\", \"https://es02:9200\", \"https://es03:9200\"]
+  hosts: [\"https://es01:9200\"]
   username: \"elastic\"
   password: "\"${PASSWD}\""
   ssl.enabled: true
@@ -1731,7 +1365,7 @@ metricbeat.modules:
     - enrich
   xpack.enabled: true
   period: 10s
-  hosts: [\"https://es01:9200\", \"https://es02:9200\", \"https://es03:9200\"]
+  hosts: [\"https://es01:9200\"]
   username: \"elastic\"
   password: "\"${PASSWD}\""
   ssl.enabled: true
@@ -1752,7 +1386,7 @@ metricbeat.modules:
     - shard
   xpack.enabled: true
   period: 10s
-  hosts: [\"https://es01:9200\", \"https://es02:9200\", \"https://es03:9200\"]
+  hosts: [\"https://es01:9200\"]
   username: \"elastic\"
   password: "\"${PASSWD}\""
   ssl.enabled: true
@@ -1815,7 +1449,7 @@ processors:
   - add_docker_metadata: ~
 
 output.elasticsearch:
-  hosts: [\"https://es01:9200\", \"https://es02:9200\", \"https://es03:9200\"]
+  hosts: [\"https://es01:9200\"]
   username: \"filebeat_writer_user\"
   password: \"${FWUPASSWD}\"
   ssl.enabled: true
@@ -1843,7 +1477,7 @@ processors:
   - add_docker_metadata: ~
 
 output.elasticsearch:
-  hosts: [\"https://es01:9200\", \"https://es02:9200\", \"https://es03:9200\"]
+  hosts: [\"https://es01:9200\"]
   username: \"elastic\"
   password: \"${PASSWD}\"
   ssl.enabled: true
@@ -2196,7 +1830,7 @@ EOF
 xpack.security.authc.api_key.enabled: true
 EOF
     # restart elasticsearch
-    for instance in es01 es02 es03
+    for instance in es01
     do
       docker restart ${instance}>/dev/null 2>&1
       sleep 10
@@ -2416,8 +2050,13 @@ EOF
     sleep 5
 
     # Create service token
-    SERVICETOKEN=`curl -k -u "elastic:${PASSWD}" -s -X POST https://localhost:5601/api/fleet/service-tokens --header 'kbn-xsrf: true' | jq -r .value`
+    SERVICETOKEN_RESP=`curl -k -u "elastic:${PASSWD}" -s -X POST https://localhost:5601/api/fleet/service-tokens --header 'kbn-xsrf: true'`
+    SERVICETOKEN=`echo ${SERVICETOKEN_RESP} | jq -r .value`
     echo "${green}[DEBUG]${reset} Generated SERVICE TOKEN for fleet server: ${SERVICETOKEN}"
+    if [[ ${#SERVICETOKEN} -lt 10 ]]; then
+            echo "Service Token is invalid, please enter valid one below:"
+            read SERVICETOKEN;
+    fi
 
     # generate fleet-compose.yml
     cat > fleet-compose.yml<<EOF
